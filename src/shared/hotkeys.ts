@@ -43,8 +43,13 @@ export const DOM_TO_MAC: Record<string, number> = {
  */
 export const MOUSE_BUTTON_BASE = 1000;
 
-/** X11 button numbers by MouseEvent.button. Left and right stay for clicking. */
-export const DOM_BUTTON_TO_X: Record<number, number> = { 1: 2, 3: 8, 4: 9 };
+/** X11 button numbers by MouseEvent.button. */
+export const DOM_BUTTON_TO_X: Record<number, number> = { 0: 1, 1: 2, 2: 3, 3: 8, 4: 9 };
+
+/** Left and right click only work with a modifier, so plain clicks stay clicks. */
+export function mouseButtonNeedsModifier(xButton: number): boolean {
+  return xButton === 1 || xButton === 3;
+}
 
 export function isMouseHotkey(keyCode: number): boolean {
   return keyCode > MOUSE_BUTTON_BASE && keyCode < MOUSE_BUTTON_BASE + 64;
@@ -52,6 +57,8 @@ export function isMouseHotkey(keyCode: number): boolean {
 
 function mouseButtonName(keyCode: number, names: Messages['keys']): string {
   const button = keyCode - MOUSE_BUTTON_BASE;
+  if (button === 1) return names.mouseLeft;
+  if (button === 3) return names.mouseRight;
   if (button === 2) return names.mouseMiddle;
   if (button === 8) return names.mouseBack;
   if (button === 9) return names.mouseForward;

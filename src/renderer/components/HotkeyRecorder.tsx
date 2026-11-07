@@ -10,6 +10,7 @@ import {
   hotkeyLabel,
   MODIFIER_FLAGS,
   MOUSE_BUTTON_BASE,
+  mouseButtonNeedsModifier,
   MODIFIER_ONLY_KEYCODES,
   RIGHT_ALT_HOTKEY,
 } from '../../shared/hotkeys';
@@ -87,22 +88,26 @@ function HotkeyCapture({ current, onSave, mouse }: { current: HotkeyConfig; onSa
       if (pending.current) finish(pending.current);
     };
 
-    // Mouse side and middle buttons (Linux helper only). Left and right stay for clicking.
+    // Mouse buttons (Linux helper only). Left and right only with a modifier, so a plain click stays a click.
     const handleMouseDown = (event: MouseEvent) => {
       const button = DOM_BUTTON_TO_X[event.button];
       if (!button) return;
-      event.preventDefault();
-      event.stopPropagation();
       let modifiers = 0;
       if (event.metaKey) modifiers |= MODIFIER_FLAGS.command;
       if (event.altKey) modifiers |= MODIFIER_FLAGS.option;
       if (event.shiftKey) modifiers |= MODIFIER_FLAGS.shift;
       if (event.ctrlKey) modifiers |= MODIFIER_FLAGS.control;
+      if (mouseButtonNeedsModifier(button) && modifiers === 0) return;
+      event.preventDefault();
+      event.stopPropagation();
       pending.current = null;
       finish({ keyCode: MOUSE_BUTTON_BASE + button, modifiers });
     };
     const swallow = (event: MouseEvent) => {
-      if (DOM_BUTTON_TO_X[event.button]) event.preventDefault();
+      const button = DOM_BUTTON_TO_X[event.button];
+      if (button && (!mouseButtonNeedsModifier(button) || event.ctrlKey || event.altKey || event.shiftKey || event.metaKey)) {
+        event.preventDefault();
+      }
     };
 
     window.addEventListener('keydown', handleKeyDown, true);
@@ -111,6 +116,7 @@ function HotkeyCapture({ current, onSave, mouse }: { current: HotkeyConfig; onSa
       window.addEventListener('mousedown', handleMouseDown, true);
       window.addEventListener('mouseup', swallow, true);
       window.addEventListener('auxclick', swallow, true);
+      window.addEventListener('contextmenu', swallow, true);
     }
     return () => {
       window.removeEventListener('keydown', handleKeyDown, true);
@@ -118,6 +124,7 @@ function HotkeyCapture({ current, onSave, mouse }: { current: HotkeyConfig; onSa
       window.removeEventListener('mousedown', handleMouseDown, true);
       window.removeEventListener('mouseup', swallow, true);
       window.removeEventListener('auxclick', swallow, true);
+      window.removeEventListener('contextmenu', swallow, true);
     };
   }, [recording, onSave, t, mouse]);
 

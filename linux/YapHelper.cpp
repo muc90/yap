@@ -138,10 +138,10 @@ static const int XK_LSUPER = 133, XK_RSUPER = 134;
 static bool isMouseVirtual(int kc) { return kc > MOUSE_VIRTUAL && kc < KEY_SLOTS; }
 
 static int macToX(long mac) {
-    // Middle and extra buttons only; 1/3 are left/right clicks, 4-7 the wheel.
+    // Buttons 4-7 are the wheel. Left/right (1/3) need a modifier, checked in startListening.
     if (mac > MOUSE_BASE && mac < MOUSE_BASE + (KEY_SLOTS - MOUSE_VIRTUAL)) {
         long button = mac - MOUSE_BASE;
-        if (button == 2 || button >= 8) return MOUSE_VIRTUAL + static_cast<int>(button);
+        if (button <= 3 || button >= 8) return MOUSE_VIRTUAL + static_cast<int>(button);
         return 0;
     }
     switch (mac) {
@@ -340,6 +340,8 @@ static void drainX() {
         } else if (ev.xcookie.evtype == XI_RawButtonPress || ev.xcookie.evtype == XI_RawButtonRelease) {
             auto* raw = static_cast<XIRawEvent*>(ev.xcookie.data);
             int button = raw->detail;
+            // Left/right only count through the modifier grab (core events above): a
+            // plain click must stay a click.
             if (button == 2 || (button >= 8 && MOUSE_VIRTUAL + button < KEY_SLOTS)) {
                 handleKey(MOUSE_VIRTUAL + button, ev.xcookie.evtype == XI_RawButtonPress);
             }
@@ -348,14 +350,40 @@ static void drainX() {
     }
 }
 
-/** Keeps the dictation button from also reaching apps (Back in a browser, middle-click paste). */
-static void grabMouseButton(unsigned int button) {
-    if (!dpy || button == grabbedButton) return;
+static unsigned int grabbedMask = 0;
+
+static unsigned int xModifierMask(unsigned long mac) {
+    unsigned int mask = 0;
+    if (mac & MAC_CONTROL) mask |= ControlMask;
+    if (mac & MAC_SHIFT) mask |= ShiftMask;
+    if (mac & MAC_OPTION) mask |= Mod1Mask;
+    if (mac & MAC_COMMAND) mask |= Mod4Mask;
+    return mask;
+}
+
+/**
+ * Keeps the dictation button from also reaching apps (Back in a browser,
+ * middle-click paste). Left and right are grabbed only together with their
+ * modifiers, so ordinary clicks keep working.
+ */
+static void grabMouseButton(unsigned int button, unsigned long macModifiers) {
+    if (!dpy) return;
+    unsigned int mask = (button == 1 || button == 3) ? xModifierMask(macModifiers) : AnyModifier;
+    if (button == grabbedButton && mask == grabbedMask) return;
     if (grabbedButton) XUngrabButton(dpy, grabbedButton, AnyModifier, root);
     grabbedButton = button;
+    grabbedMask = mask;
     if (button) {
-        XGrabButton(dpy, button, AnyModifier, root, False, ButtonPressMask | ButtonReleaseMask, GrabModeAsync,
-                    GrabModeAsync, None, None);
+        const unsigned int events = ButtonPressMask | ButtonReleaseMask;
+        if (mask == AnyModifier) {
+            XGrabButton(dpy, button, AnyModifier, root, False, events, GrabModeAsync, GrabModeAsync, None, None);
+        } else {
+            // Exact-modifier grabs would miss with Caps Lock or Num Lock on.
+            const unsigned int locks[] = {0, LockMask, Mod2Mask, LockMask | Mod2Mask};
+            for (unsigned int lock : locks) {
+                XGrabButton(dpy, button, mask | lock, root, False, events, GrabModeAsync, GrabModeAsync, None, None);
+            }
+        }
     }
     XFlush(dpy);
 }
@@ -373,7 +401,7 @@ static void startListening(long macKey, unsigned long modifiers) {
     listenerActive = false;
     targetKeycode = 0;
     targetModifiers = modifiers;
-    grabMouseButton(0);
+    grabMouseButton(0, 0);
 
     if (!dpy) {
         listenerError = "No X11 display. Yap needs an X11 session (Wayland is not supported).";
@@ -395,9 +423,16 @@ static void startListening(long macKey, unsigned long modifiers) {
         return;
     }
 
+    unsigned int button = isMouseVirtual(kc) ? static_cast<unsigned int>(kc - MOUSE_VIRTUAL) : 0;
+    if ((button == 1 || button == 3) && xModifierMask(modifiers) == 0) {
+        listenerError = "Left and right click need a modifier (e.g. Ctrl + right click).";
+        listenerErrorCode = "key-unsupported";
+        return;
+    }
+
     targetKeycode = kc;
     syncKeymap();
-    grabMouseButton(isMouseVirtual(kc) ? static_cast<unsigned int>(kc - MOUSE_VIRTUAL) : 0);
+    grabMouseButton(button, modifiers);
     if (changed) hotkeyIsDown = false;
     listenerActive = true;
 }
@@ -635,7 +670,7 @@ static void handleCommand(const std::string& line) {
         hotkeyIsDown = false;
         targetKeycode = 0;
         listenerActive = false;
-        grabMouseButton(0);
+        grabMouseButton(0, 0);
         reply(id, listenerStatus());
     } else if (cmd == "listenerStatus") {
         reply(id, listenerStatus());

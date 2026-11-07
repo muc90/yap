@@ -381,7 +381,7 @@ export const en = {
   hotkey: {
     dictationKey: 'Dictation key',
     recordingHint: 'Press the key or combination. Escape cancels.',
-    recordingHintMouse: 'Press a key, a combination or a mouse side button. Escape cancels.',
+    recordingHintMouse: 'Press a key, a combination or a mouse button (left/right click only with Ctrl, Alt, Shift or Super). Escape cancels.',
     idleHint: 'Hold it to talk, double tap for hands-free.',
     pressKey: 'Press a key…',
     useFn: 'Use the fn key',
@@ -444,6 +444,8 @@ export const en = {
     pcRightMeta: (name: string) => `Right ${name}`,
     pcReturn: 'Enter',
     pcDelete: 'Backspace',
+    mouseLeft: 'Left click',
+    mouseRight: 'Right click',
     mouseMiddle: 'Middle mouse button',
     mouseBack: 'Mouse back button',
     mouseForward: 'Mouse forward button',

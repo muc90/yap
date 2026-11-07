@@ -133,6 +133,8 @@ describe('hotkey labels', () => {
       expect(buildHotkeyLabel(1008, 0, MESSAGES.de.keys)).toBe('Maustaste Zurück');
       expect(buildHotkeyLabel(1002, 0x40000, MESSAGES.de.keys)).toBe('Strg+Mittlere Maustaste');
       expect(buildHotkeyLabel(1009, 0)).toBe('Mouse forward button');
+      expect(buildHotkeyLabel(1001, 0x80000, MESSAGES.de.keys)).toBe('Alt+Linksklick');
+      expect(buildHotkeyLabel(1003, 0x40000, MESSAGES.de.keys)).toBe('Strg+Rechtsklick');
     } finally {
       setHotkeyLabelStyle({ mac: true, superKey: 'Win', printed: undefined });
     }
