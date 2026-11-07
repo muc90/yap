@@ -211,6 +211,7 @@ function setStatus(next: AppStatus): void {
   for (const window of [liveWindow(mainWindow), liveWindow(overlayWindow)]) {
     window?.webContents.send('app:status', next);
   }
+  updateTrayStatus(next);
   // Follow the cursor to the active display when a dictation starts.
   syncOverlay(wasIdle && next.phase === 'listening');
 }
@@ -413,10 +414,38 @@ function createAppMenu(): void {
   );
 }
 
-function getTrayIconPath(): string {
+function getTrayIconPath(name = 'trayTemplate.png'): string {
   return app.isPackaged
-    ? path.join(process.resourcesPath, 'icons', 'trayTemplate.png')
-    : path.join(projectRoot, 'build', 'icons', 'trayTemplate.png');
+    ? path.join(process.resourcesPath, 'icons', name)
+    : path.join(projectRoot, 'build', 'icons', name);
+}
+
+/*
+ * Linux panels do not tint template images, so the black macOS glyph would
+ * vanish on a dark panel. Linux gets a light icon whose dot shows the
+ * dictation state, so the panel can stand in for the floating pill.
+ */
+type TrayState = 'idle' | 'recording' | 'processing';
+const LINUX_TRAY_ICONS: Record<TrayState, string> = {
+  idle: 'trayLinux.png',
+  recording: 'trayLinuxRecording.png',
+  processing: 'trayLinuxProcessing.png',
+};
+let trayState: TrayState = 'idle';
+
+function trayStateFor(phase: AppStatus['phase']): TrayState {
+  if (phase === 'listening') return 'recording';
+  if (phase === 'transcribing' || phase === 'rewriting' || phase === 'pasting') return 'processing';
+  return 'idle';
+}
+
+function updateTrayStatus(next: AppStatus): void {
+  if (!tray || process.platform !== 'linux') return;
+  const state = trayStateFor(next.phase);
+  tray.setToolTip(next.phase === 'idle' ? 'Yap' : `Yap – ${next.title}`);
+  if (state === trayState) return;
+  trayState = state;
+  tray.setImage(nativeImage.createFromPath(getTrayIconPath(LINUX_TRAY_ICONS[state])));
 }
 
 function updateTrayMenu(): void {
@@ -437,8 +466,11 @@ function updateTrayMenu(): void {
 }
 
 function createTray(): void {
-  const icon = nativeImage.createFromPath(getTrayIconPath());
-  icon.setTemplateImage(true);
+  const icon =
+    process.platform === 'linux'
+      ? nativeImage.createFromPath(getTrayIconPath(LINUX_TRAY_ICONS.idle))
+      : nativeImage.createFromPath(getTrayIconPath());
+  if (process.platform !== 'linux') icon.setTemplateImage(true);
   tray = new Tray(icon);
   tray.setToolTip('Yap');
   updateTrayMenu();
