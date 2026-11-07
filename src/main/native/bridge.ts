@@ -42,7 +42,7 @@ export interface NativeBridgeEvents {
 }
 
 export abstract class NativeBridge extends EventEmitter<NativeBridgeEvents> {
-  abstract readonly kind: 'mac' | 'windows' | 'none';
+  abstract readonly kind: 'mac' | 'windows' | 'linux' | 'none';
 
   /** Starts the helper. Resolves false when no helper binary is available. */
   abstract start(): Promise<boolean>;
@@ -65,7 +65,7 @@ export abstract class NativeBridge extends EventEmitter<NativeBridgeEvents> {
 
 const GRANTED: NativePermissions = { accessibility: true, inputMonitoring: true, postEvents: true };
 
-/** Used where no helper exists (Linux development builds). */
+/** Used where no helper exists (e.g. Wayland-only or unknown platforms). */
 export class NullBridge extends NativeBridge {
   readonly kind = 'none' as const;
 

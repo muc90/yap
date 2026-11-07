@@ -370,6 +370,7 @@ export const de: Messages = {
   hotkey: {
     dictationKey: 'Diktiertaste',
     recordingHint: 'Drück die Taste oder Kombination. Escape bricht ab.',
+    recordingHintMouse: 'Drück eine Taste, eine Kombination oder eine Maus-Seitentaste. Escape bricht ab.',
     idleHint: 'Halten zum Sprechen, zweimal tippen für freihändig.',
     pressKey: 'Taste drücken…',
     useFn: 'Die fn-Taste verwenden',
@@ -417,6 +418,20 @@ export const de: Messages = {
     alt: 'Alt',
     shift: 'Umschalt',
     win: 'Win',
+    pcLeftAlt: 'Linke Alt-Taste',
+    pcRightAlt: 'AltGr',
+    pcLeftCtrl: 'Linke Strg-Taste',
+    pcRightCtrl: 'Rechte Strg-Taste',
+    pcLeftShift: 'Linke Umschalttaste',
+    pcRightShift: 'Rechte Umschalttaste',
+    pcLeftMeta: (name) => `Linke ${name}-Taste`,
+    pcRightMeta: (name) => `Rechte ${name}-Taste`,
+    pcReturn: 'Eingabetaste',
+    pcDelete: 'Rücktaste',
+    mouseMiddle: 'Mittlere Maustaste',
+    mouseBack: 'Maustaste Zurück',
+    mouseForward: 'Maustaste Vor',
+    mouseOther: (button) => `Maustaste ${button}`,
   },
 
   copyLast: {

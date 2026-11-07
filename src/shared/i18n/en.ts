@@ -381,6 +381,7 @@ export const en = {
   hotkey: {
     dictationKey: 'Dictation key',
     recordingHint: 'Press the key or combination. Escape cancels.',
+    recordingHintMouse: 'Press a key, a combination or a mouse side button. Escape cancels.',
     idleHint: 'Hold it to talk, double tap for hands-free.',
     pressKey: 'Press a key…',
     useFn: 'Use the fn key',
@@ -432,6 +433,21 @@ export const en = {
     alt: 'Alt',
     shift: 'Shift',
     win: 'Win',
+    /** Dictation keys on Windows and Linux. */
+    pcLeftAlt: 'Left Alt',
+    pcRightAlt: 'Right Alt (AltGr)',
+    pcLeftCtrl: 'Left Ctrl',
+    pcRightCtrl: 'Right Ctrl',
+    pcLeftShift: 'Left Shift',
+    pcRightShift: 'Right Shift',
+    pcLeftMeta: (name: string) => `Left ${name}`,
+    pcRightMeta: (name: string) => `Right ${name}`,
+    pcReturn: 'Enter',
+    pcDelete: 'Backspace',
+    mouseMiddle: 'Middle mouse button',
+    mouseBack: 'Mouse back button',
+    mouseForward: 'Mouse forward button',
+    mouseOther: (button: number) => `Mouse button ${button}`,
   },
 
   copyLast: {

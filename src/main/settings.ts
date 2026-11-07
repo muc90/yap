@@ -13,7 +13,7 @@ import type {
   TranscriptionMode,
   UpdateSettingsInput,
 } from '../shared/types';
-import { buildHotkeyLabel } from '../shared/hotkeys';
+import { buildHotkeyLabel, FN_KEY_CODE } from '../shared/hotkeys';
 import { UI_LANGUAGES } from '../shared/i18n';
 import { isValidAccelerator } from '../shared/shortcuts';
 import { CLOUD_MODELS, LANGUAGES, LOCAL_MODELS, REWRITE_MODELS } from '../shared/models';
@@ -135,7 +135,8 @@ export function migrateSettings(raw: unknown, defaults: AppSettings): AppSetting
     customPlusVoice: pick(source.customPlusVoice, VOICES, defaults.customPlusVoice),
     enhancementLevel: pick(source.enhancementLevel, LEVELS, defaults.enhancementLevel),
     // Labels are derived, so older wordings (Right ⌥) follow the current one.
-    hotkey: isHotkey(source.hotkey)
+    // Fn never reaches X11 (the keyboard firmware handles it), so Linux falls back to Right Alt.
+    hotkey: isHotkey(source.hotkey) && !(process.platform === 'linux' && source.hotkey.keyCode === FN_KEY_CODE)
       ? { ...source.hotkey, label: buildHotkeyLabel(source.hotkey.keyCode, source.hotkey.modifiers) }
       : defaults.hotkey,
     autoPaste: bool(source.autoPaste, defaults.autoPaste),

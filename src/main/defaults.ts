@@ -26,7 +26,7 @@ export function createDefaultSettings(): AppSettings {
     styleMode: 'conversation',
     customPlusVoice: 'conversation',
     enhancementLevel: 'medium',
-    hotkey: process.platform === 'win32' ? DEFAULT_HOTKEY_WINDOWS : DEFAULT_HOTKEY,
+    hotkey: process.platform === 'darwin' ? DEFAULT_HOTKEY : DEFAULT_HOTKEY_WINDOWS,
     autoPaste: true,
     copyToClipboard: false,
     showOverlay: true,

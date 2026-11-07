@@ -29,12 +29,13 @@ function toPermissions(value: Record<string, unknown>): NativePermissions {
   };
 }
 
-const HELPER_ERROR_CODES: readonly HotkeyErrorCode[] = ['needs-access', 'refused'];
+const HELPER_ERROR_CODES: readonly HotkeyErrorCode[] = ['needs-access', 'refused', 'fn-unsupported', 'key-unsupported'];
 
 export function toListenerStatus(value: Record<string, unknown>): ListenerStatus {
   let error: HotkeyErrorCode | null = null;
   if (HELPER_ERROR_CODES.includes(value.errorCode as HotkeyErrorCode)) {
     error = value.errorCode as HotkeyErrorCode;
+    if (typeof value.error === 'string') console.warn('[yap] listener error:', value.error);
   } else if (typeof value.error === 'string') {
     // The helper's English message is for the log, the code for the UI.
     console.warn('[yap] listener error:', value.error);
@@ -66,7 +67,7 @@ function toFocus(value: unknown): FocusInfo | undefined {
  * and it can push hotkey, permission and listener changes as they happen.
  */
 export class MacHelperBridge extends NativeBridge {
-  readonly kind = 'mac' as const;
+  readonly kind: 'mac' | 'linux' = 'mac';
 
   private child: ChildProcessWithoutNullStreams | null = null;
   private starting: Promise<boolean> | null = null;
@@ -201,7 +202,7 @@ export class MacHelperBridge extends NativeBridge {
     }, 300 * this.restarts.length);
   }
 
-  private call(cmd: string, args: Record<string, unknown> = {}, timeoutMs = CALL_TIMEOUT_MS): Promise<Record<string, unknown>> {
+  protected call(cmd: string, args: Record<string, unknown> = {}, timeoutMs = CALL_TIMEOUT_MS): Promise<Record<string, unknown>> {
     const child = this.child;
     if (!child) {
       return Promise.reject(new Error('The native helper is not running.'));
@@ -218,7 +219,7 @@ export class MacHelperBridge extends NativeBridge {
     });
   }
 
-  private async callStarted(cmd: string, args: Record<string, unknown> = {}, timeoutMs?: number): Promise<Record<string, unknown>> {
+  protected async callStarted(cmd: string, args: Record<string, unknown> = {}, timeoutMs?: number): Promise<Record<string, unknown>> {
     if (!this.child && !(await this.start())) {
       throw new Error('The native helper is not available.');
     }

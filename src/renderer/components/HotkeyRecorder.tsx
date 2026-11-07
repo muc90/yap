@@ -3,33 +3,18 @@ import { useEffect, useRef, useState } from 'react';
 import type { AppState, HotkeyConfig } from '../../shared/types';
 import {
   buildHotkeyLabel,
+  DOM_BUTTON_TO_X,
+  DOM_TO_MAC,
   FN_HOTKEY,
   FN_KEY_CODE,
   hotkeyLabel,
   MODIFIER_FLAGS,
+  MOUSE_BUTTON_BASE,
   MODIFIER_ONLY_KEYCODES,
   RIGHT_ALT_HOTKEY,
 } from '../../shared/hotkeys';
 import { rich, useT } from '../lib/i18n';
 import { Button, KeyCap, Notice, ToggleRow } from './ui';
-
-const DOM_TO_MAC: Record<string, number> = {
-  MetaLeft: 55, MetaRight: 54,
-  AltLeft: 58, AltRight: 61,
-  ShiftLeft: 56, ShiftRight: 60,
-  ControlLeft: 59, ControlRight: 62,
-  Space: 49, Enter: 36, Tab: 48, Backspace: 51, Escape: 53,
-  KeyA: 0, KeyB: 11, KeyC: 8, KeyD: 2, KeyE: 14, KeyF: 3,
-  KeyG: 5, KeyH: 4, KeyI: 34, KeyJ: 38, KeyK: 40, KeyL: 37,
-  KeyM: 46, KeyN: 45, KeyO: 31, KeyP: 35, KeyQ: 12, KeyR: 15,
-  KeyS: 1, KeyT: 17, KeyU: 32, KeyV: 9, KeyW: 13, KeyX: 7,
-  KeyY: 16, KeyZ: 6,
-  Digit0: 29, Digit1: 18, Digit2: 19, Digit3: 20, Digit4: 21,
-  Digit5: 23, Digit6: 22, Digit7: 26, Digit8: 28, Digit9: 25,
-  F1: 122, F2: 120, F3: 99, F4: 118, F5: 96, F6: 97,
-  F7: 98, F8: 100, F9: 101, F10: 109, F11: 103, F12: 111,
-  F13: 105, F14: 107, F15: 113,
-};
 
 function modifierFlagForKeyCode(keyCode: number): number {
   switch (keyCode) {
@@ -50,7 +35,7 @@ function modifierFlagForKeyCode(keyCode: number): number {
   }
 }
 
-function HotkeyCapture({ current, onSave }: { current: HotkeyConfig; onSave: (config: HotkeyConfig) => void }) {
+function HotkeyCapture({ current, onSave, mouse }: { current: HotkeyConfig; onSave: (config: HotkeyConfig) => void; mouse: boolean }) {
   const t = useT();
   const [recording, setRecording] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
@@ -102,20 +87,46 @@ function HotkeyCapture({ current, onSave }: { current: HotkeyConfig; onSave: (co
       if (pending.current) finish(pending.current);
     };
 
+    // Mouse side and middle buttons (Linux helper only). Left and right stay for clicking.
+    const handleMouseDown = (event: MouseEvent) => {
+      const button = DOM_BUTTON_TO_X[event.button];
+      if (!button) return;
+      event.preventDefault();
+      event.stopPropagation();
+      let modifiers = 0;
+      if (event.metaKey) modifiers |= MODIFIER_FLAGS.command;
+      if (event.altKey) modifiers |= MODIFIER_FLAGS.option;
+      if (event.shiftKey) modifiers |= MODIFIER_FLAGS.shift;
+      if (event.ctrlKey) modifiers |= MODIFIER_FLAGS.control;
+      pending.current = null;
+      finish({ keyCode: MOUSE_BUTTON_BASE + button, modifiers });
+    };
+    const swallow = (event: MouseEvent) => {
+      if (DOM_BUTTON_TO_X[event.button]) event.preventDefault();
+    };
+
     window.addEventListener('keydown', handleKeyDown, true);
     window.addEventListener('keyup', handleKeyUp, true);
+    if (mouse) {
+      window.addEventListener('mousedown', handleMouseDown, true);
+      window.addEventListener('mouseup', swallow, true);
+      window.addEventListener('auxclick', swallow, true);
+    }
     return () => {
       window.removeEventListener('keydown', handleKeyDown, true);
       window.removeEventListener('keyup', handleKeyUp, true);
+      window.removeEventListener('mousedown', handleMouseDown, true);
+      window.removeEventListener('mouseup', swallow, true);
+      window.removeEventListener('auxclick', swallow, true);
     };
-  }, [recording, onSave, t]);
+  }, [recording, onSave, t, mouse]);
 
   return (
     <div className="hotkey-capture">
       <div className="row">
         <div className="row-text">
           <strong>{t.hotkey.dictationKey}</strong>
-          <span>{recording ? t.hotkey.recordingHint : t.hotkey.idleHint}</span>
+          <span>{recording ? (mouse ? t.hotkey.recordingHintMouse : t.hotkey.recordingHint) : t.hotkey.idleHint}</span>
         </div>
         <button
           type="button"
@@ -175,7 +186,7 @@ export function HotkeySettings({ state, onSave }: { state: AppState; onSave: (co
           onChange={(value) => onSave(value ? FN_HOTKEY : RIGHT_ALT_HOTKEY)}
         />
       )}
-      {(!isMac || !isFn) && <HotkeyCapture current={hotkey} onSave={onSave} />}
+      {(!isMac || !isFn) && <HotkeyCapture current={hotkey} onSave={onSave} mouse={state.platform === 'linux'} />}
       {isMac && <FnKeyNotice state={state} />}
     </div>
   );

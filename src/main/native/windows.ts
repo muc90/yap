@@ -64,14 +64,14 @@ export function translateHotkey(hotkey: HotkeyConfig): { keyCode: number; modifi
   return { keyCode: MAC_TO_ABSTRACT[hotkey.keyCode] ?? hotkey.keyCode, modifiers };
 }
 
-interface ClipboardSnapshot {
+export interface ClipboardSnapshot {
   text: string;
   html: string;
   rtf: string;
   image: NativeImage;
 }
 
-function snapshotClipboard(): ClipboardSnapshot {
+export function snapshotClipboard(): ClipboardSnapshot {
   return {
     text: clipboard.readText(),
     html: clipboard.readHTML(),
@@ -80,7 +80,7 @@ function snapshotClipboard(): ClipboardSnapshot {
   };
 }
 
-function restoreClipboard(snapshot: ClipboardSnapshot): void {
+export function restoreClipboard(snapshot: ClipboardSnapshot): void {
   const hasImage = !snapshot.image.isEmpty();
   if (!snapshot.text && !snapshot.html && !snapshot.rtf && !hasImage) {
     clipboard.clear();

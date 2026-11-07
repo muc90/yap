@@ -7,6 +7,7 @@ import './styles.css';
 import { StrictMode, type ComponentType } from 'react';
 import { createRoot } from 'react-dom/client';
 
+import { MAC_TO_DOM, setHotkeyLabelStyle } from '../shared/hotkeys';
 import { I18nProvider } from './lib/i18n';
 
 const isOverlay = window.location.hash === '#overlay';
@@ -19,6 +20,7 @@ if (!isOverlay && window.yap.initialTheme !== 'system') {
 /* Two entry points in one page: the overlay window only loads the recorder
    and its pill, not the settings app. */
 async function mount(): Promise<void> {
+  await applyKeyLabelStyle();
   const Root: ComponentType = isOverlay
     ? (await import('./overlay/Overlay')).Overlay
     : (await import('./App')).App;
@@ -31,6 +33,23 @@ async function mount(): Promise<void> {
     </StrictMode>,
   );
   dismissSplash();
+}
+
+/**
+ * Windows and Linux name keys the PC way, with the letters of the active
+ * layout (Z at the US Y position on QWERTZ). Done before the first render,
+ * because labels are computed while rendering.
+ */
+async function applyKeyLabelStyle(): Promise<void> {
+  if (navigator.userAgent.includes('Mac')) return;
+  setHotkeyLabelStyle({ mac: false, superKey: navigator.userAgent.includes('Windows') ? 'Win' : 'Super' });
+  const keyboard = (navigator as Navigator & { keyboard?: { getLayoutMap(): Promise<{ get(code: string): string | undefined }> } }).keyboard;
+  try {
+    const map = await Promise.race([keyboard?.getLayoutMap(), new Promise<undefined>((resolve) => setTimeout(resolve, 300))]);
+    if (map) setHotkeyLabelStyle({ printed: (macKeyCode) => map.get(MAC_TO_DOM[macKeyCode] ?? '') });
+  } catch {
+    // US names then.
+  }
 }
 
 /** Minimum time the splash stays up, so it reads as a launch screen instead of a flicker. */

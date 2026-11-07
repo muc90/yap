@@ -91,9 +91,10 @@ export function SettingsPage({ state, onState }: { state: AppState; onState: (ne
         />
         <ToggleRow
           title={t.settings.openAtLogin}
-          description={state.isPackaged ? t.settings.openAtLoginHint : t.settings.installedOnly}
+          description={state.isPackaged || state.platform === 'linux' ? t.settings.openAtLoginHint : t.settings.installedOnly}
           checked={settings.launchAtLogin}
-          disabled={!state.isPackaged}
+          // Linux writes an autostart entry, which works for a source checkout as well.
+          disabled={!state.isPackaged && state.platform !== 'linux'}
           onChange={(launchAtLogin) => void update({ launchAtLogin })}
         />
       </Card>

@@ -10,6 +10,7 @@ log.transports.file.maxSize = 5 * 1024 * 1024;
 log.transports.console.level = 'info';
 Object.assign(console, log.functions);
 
+import { setHotkeyLabelStyle } from '../shared/hotkeys';
 import { resolveLocale } from '../shared/i18n';
 import type { AppSettings, AppState, AppStatus, PermissionsState, PublicSettings, UpdateSettingsInput } from '../shared/types';
 import { loadAppRules } from './app-rules';
@@ -62,6 +63,11 @@ let copyLastShortcut: AppState['copyLastShortcut'] = 'off';
 let micPollTimer: ReturnType<typeof setInterval> | null = null;
 let audioCleanupTimer: ReturnType<typeof setInterval> | null = null;
 let modelCheckTimer: ReturnType<typeof setInterval> | null = null;
+
+// Windows and Linux name keys the PC way (Strg, AltGr), not with Mac symbols.
+if (process.platform !== 'darwin') {
+  setHotkeyLabelStyle({ mac: false, superKey: process.platform === 'win32' ? 'Win' : 'Super' });
+}
 
 const bridge = createNativeBridge();
 const permissions = new PermissionsService(bridge, {

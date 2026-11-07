@@ -9,6 +9,7 @@ import { pathExists } from '../storage';
 
 const projectRoot = path.resolve(fileURLToPath(new URL('../../', import.meta.url)));
 const isWindows = process.platform === 'win32';
+const isLinux = process.platform === 'linux';
 
 export function getHelperBinaryPath(): string {
   const name = isWindows ? 'yap-helper.exe' : 'yap-helper';
@@ -18,9 +19,9 @@ export function getHelperBinaryPath(): string {
 }
 
 function getHelperSourcePath(): string {
-  return isWindows
-    ? path.join(projectRoot, 'windows', 'YapHelper.cpp')
-    : path.join(projectRoot, 'swift', 'YapHelper.swift');
+  if (isWindows) return path.join(projectRoot, 'windows', 'YapHelper.cpp');
+  if (isLinux) return path.join(projectRoot, 'linux', 'YapHelper.cpp');
+  return path.join(projectRoot, 'swift', 'YapHelper.swift');
 }
 
 async function modifiedAt(target: string): Promise<number> {
@@ -34,7 +35,9 @@ async function modifiedAt(target: string): Promise<number> {
 function compile(source: string, output: string): Promise<boolean> {
   const [command, args] = isWindows
     ? ['g++', ['-O2', '-o', output, source, '-luser32', '-lkernel32']]
-    : ['swiftc', ['-O', '-swift-version', '5', source, '-o', output]];
+    : isLinux
+      ? ['g++', ['-O2', '-o', output, source, '-lX11', '-lXi', '-lXtst']]
+      : ['swiftc', ['-O', '-swift-version', '5', source, '-o', output]];
 
   return new Promise((resolve) => {
     const child = spawn(command, args, { stdio: ['ignore', 'ignore', 'pipe'] });

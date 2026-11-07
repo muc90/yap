@@ -440,6 +440,8 @@ describe('DictationEngine', () => {
   it('speaks German when the UI is German', async () => {
     setLocale('de');
     try {
+      // The default key differs per platform (Fn on macOS, Right Alt elsewhere).
+      settings = { ...settings, hotkey: { keyCode: 63, modifiers: 0, label: 'Fn' } };
       engine.refreshStatus();
       expect(statuses.at(-1)).toMatchObject({ phase: 'idle', title: 'Bereit', detail: 'Halte Fn gedrückt, um zu diktieren.' });
 

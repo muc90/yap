@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildHotkeyLabel, hotkeyLabel, RIGHT_ALT_HOTKEY } from '../../src/shared/hotkeys';
+import { buildHotkeyLabel, hotkeyLabel, RIGHT_ALT_HOTKEY, setHotkeyLabelStyle } from '../../src/shared/hotkeys';
 import { formatMegabytes, formatSeconds, MESSAGES, resolveLocale, type Locale } from '../../src/shared/i18n';
 import { CLOUD_MODELS, LOCAL_MODELS, REWRITE_MODELS } from '../../src/shared/models';
 
@@ -115,5 +115,26 @@ describe('hotkey labels', () => {
   it('stores English labels', () => {
     expect(buildHotkeyLabel(61, 0)).toBe('Right Option (⌥)');
     expect(buildHotkeyLabel(999, 0)).toBe('Key 999');
+  });
+
+  it('uses PC names and the active layout on Windows and Linux', () => {
+    const qwertz: Record<number, string> = { 16: 'z', 6: 'y', 0: 'a' };
+    setHotkeyLabelStyle({ mac: false, superKey: 'Super', printed: (code) => qwertz[code] });
+    try {
+      expect(hotkeyLabel(RIGHT_ALT_HOTKEY, MESSAGES.de.keys)).toBe('AltGr');
+      expect(buildHotkeyLabel(62, 0, MESSAGES.de.keys)).toBe('Rechte Strg-Taste');
+      expect(buildHotkeyLabel(55, 0, MESSAGES.de.keys)).toBe('Linke Super-Taste');
+      // The US "Y" position is Z on a German keyboard.
+      expect(buildHotkeyLabel(16, 0x40000 | 0x20000, MESSAGES.de.keys)).toBe('Strg+Umschalt+Z');
+      expect(buildHotkeyLabel(49, 0x40000, MESSAGES.de.keys)).toBe('Strg+Leertaste');
+      expect(buildHotkeyLabel(61, 0x40000, MESSAGES.de.keys)).toBe('Strg+AltGr');
+      expect(buildHotkeyLabel(122, 0, MESSAGES.de.keys)).toBe('F1');
+      expect(buildHotkeyLabel(62, 0)).toBe('Right Ctrl');
+      expect(buildHotkeyLabel(1008, 0, MESSAGES.de.keys)).toBe('Maustaste Zurück');
+      expect(buildHotkeyLabel(1002, 0x40000, MESSAGES.de.keys)).toBe('Strg+Mittlere Maustaste');
+      expect(buildHotkeyLabel(1009, 0)).toBe('Mouse forward button');
+    } finally {
+      setHotkeyLabelStyle({ mac: true, superKey: 'Win', printed: undefined });
+    }
   });
 });

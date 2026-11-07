@@ -44,10 +44,19 @@ function buildWindows() {
   }
 }
 
+function buildLinux() {
+  const source = path.join(projectRoot, 'linux', 'YapHelper.cpp');
+  const output = path.join(outputDir, 'yap-helper');
+  console.log('[build] Compiling C++ helper for Linux (X11)...');
+  execFileSync('g++', ['-O2', '-Wall', '-o', output, source, '-lX11', '-lXi', '-lXtst'], { stdio: 'inherit' });
+}
+
 if (process.platform === 'darwin') {
   buildMac();
 } else if (process.platform === 'win32') {
   buildWindows();
+} else if (process.platform === 'linux') {
+  buildLinux();
 } else {
   console.log(`[build] No native helper for ${process.platform}.`);
 }
