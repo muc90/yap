@@ -70,12 +70,13 @@ export class LinuxHelperBridge extends MacHelperBridge {
     try {
       const raw = await this.callStarted(
         'paste',
-        { selfEditable: request.selfEditable, ownPid: process.pid },
+        // The helper types the text into terminals instead of pasting it.
+        { selfEditable: request.selfEditable, ownPid: process.pid, text: request.text },
         PASTE_TIMEOUT_MS,
       );
       if (raw.ok === true) {
         // Where the keystroke went, for "nothing arrived" reports.
-        console.info('[yap] paste sent to', raw.focus || '(no window)', raw.terminal ? '(terminal, Ctrl+Shift+V)' : '(Ctrl+V)', `${request.text.length} chars`);
+        console.info('[yap] paste sent to', raw.focus || '(no window)', raw.typed ? '(terminal, typed)' : '(Ctrl+V)', `${request.text.length} chars`);
         result = { ok: true };
       } else {
         const reason = raw.reason === 'no-target' || raw.reason === 'unavailable' ? raw.reason : 'failed';

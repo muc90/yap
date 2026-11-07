@@ -31,6 +31,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <string>
+#include <vector>
 
 static const char* kHelperVersion = "linux-1";
 
@@ -107,9 +108,35 @@ static std::string stringField(const std::string& json, const char* key) {
     const char* p = findField(json, key);
     if (!p || *p != '"') return "";
     std::string out;
+    auto put = [&out](unsigned long cp) {
+        if (cp < 0x80) out += static_cast<char>(cp);
+        else if (cp < 0x800) { out += static_cast<char>(0xC0 | (cp >> 6)); out += static_cast<char>(0x80 | (cp & 0x3F)); }
+        else if (cp < 0x10000) { out += static_cast<char>(0xE0 | (cp >> 12)); out += static_cast<char>(0x80 | ((cp >> 6) & 0x3F)); out += static_cast<char>(0x80 | (cp & 0x3F)); }
+        else { out += static_cast<char>(0xF0 | (cp >> 18)); out += static_cast<char>(0x80 | ((cp >> 12) & 0x3F)); out += static_cast<char>(0x80 | ((cp >> 6) & 0x3F)); out += static_cast<char>(0x80 | (cp & 0x3F)); }
+    };
     for (p++; *p && *p != '"'; p++) {
-        if (*p == '\\' && p[1]) p++;
-        out += *p;
+        if (*p != '\\' || !p[1]) { out += *p; continue; }
+        p++;
+        switch (*p) {
+            case 'n': out += '\n'; break;
+            case 't': out += '\t'; break;
+            case 'r': out += '\r'; break;
+            case 'b': out += '\b'; break;
+            case 'f': out += '\f'; break;
+            case 'u': {
+                unsigned long cp = strtoul(std::string(p + 1, 4).c_str(), nullptr, 16);
+                p += 4;
+                // A surrogate pair carries characters beyond the BMP (emoji).
+                if (cp >= 0xD800 && cp < 0xDC00 && p[1] == '\\' && p[2] == 'u') {
+                    unsigned long low = strtoul(std::string(p + 3, 4).c_str(), nullptr, 16);
+                    cp = 0x10000 + ((cp - 0xD800) << 10) + (low - 0xDC00);
+                    p += 6;
+                }
+                put(cp);
+                break;
+            }
+            default: out += *p;
+        }
     }
     return out;
 }
@@ -563,7 +590,119 @@ static void fakeKey(int kc, bool press) {
     XTestFakeKeyEvent(dpy, static_cast<unsigned int>(kc), press ? True : False, CurrentTime);
 }
 
-static std::string paste(bool selfEditable, long ownPid) {
+// ── Typing (terminals) ─────────────────────────────────────────────────
+
+static std::vector<unsigned long> utf8ToCodepoints(const std::string& s) {
+    std::vector<unsigned long> out;
+    for (size_t i = 0; i < s.size();) {
+        unsigned char c = static_cast<unsigned char>(s[i]);
+        int len = c < 0x80 ? 1 : (c >> 5) == 0x6 ? 2 : (c >> 4) == 0xE ? 3 : (c >> 3) == 0x1E ? 4 : 1;
+        unsigned long cp = len == 1 ? c : len == 2 ? (c & 0x1F) : len == 3 ? (c & 0x0F) : (c & 0x07);
+        for (int k = 1; k < len && i + k < s.size(); k++) cp = (cp << 6) | (static_cast<unsigned char>(s[i + k]) & 0x3F);
+        out.push_back(cp);
+        i += len;
+    }
+    return out;
+}
+
+static KeySym keysymFor(unsigned long cp) {
+    if (cp >= 0x20 && cp <= 0x7E) return cp;
+    if (cp >= 0xA0 && cp <= 0xFF) return cp;
+    return 0x01000000 | cp;
+}
+
+struct KeyStroke { KeyCode code; int level; };
+
+/** Where the active layout has a keysym: level 0 plain, 1 Shift, 2 AltGr, 3 Shift+AltGr. */
+static bool findKey(KeySym sym, int group, KeyStroke& out) {
+    int minKc, maxKc;
+    XDisplayKeycodes(dpy, &minKc, &maxKc);
+    for (int level = 0; level < 4; level++) {
+        for (int kc = minKc; kc <= maxKc; kc++) {
+            if (XkbKeycodeToKeysym(dpy, static_cast<KeyCode>(kc), group, level) == sym) {
+                out = {static_cast<KeyCode>(kc), level};
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+/** A keycode the layout leaves empty, borrowed for characters it cannot type (like xdotool). */
+static KeyCode spareKeycode() {
+    int minKc, maxKc;
+    XDisplayKeycodes(dpy, &minKc, &maxKc);
+    int perCode = 0;
+    KeySym* syms = XGetKeyboardMapping(dpy, static_cast<KeyCode>(minKc), maxKc - minKc + 1, &perCode);
+    KeyCode spare = 0;
+    for (int kc = maxKc; kc >= minKc && syms; kc--) {
+        bool empty = true;
+        for (int j = 0; j < perCode; j++) {
+            if (syms[(kc - minKc) * perCode + j] != NoSymbol) { empty = false; break; }
+        }
+        if (empty) { spare = static_cast<KeyCode>(kc); break; }
+    }
+    if (syms) XFree(syms);
+    return spare;
+}
+
+/**
+ * Types text with synthetic key presses. Terminals get this instead of a
+ * clipboard paste: GNOME Terminal sometimes skips pasting a clipboard that
+ * changed a moment ago, and typed keys always arrive.
+ */
+static bool typeText(const std::string& text) {
+    XkbStateRec state;
+    int group = XkbGetState(dpy, XkbUseCoreKbd, &state) == Success ? state.group : 0;
+    KeyCode shift = XKeysymToKeycode(dpy, XK_Shift_L);
+    KeyCode altgr = XKeysymToKeycode(dpy, XK_ISO_Level3_Shift);
+    KeyCode spare = 0;
+    KeySym spareSym = NoSymbol;
+    bool ok = true;
+    int sent = 0;
+
+    for (unsigned long cp : utf8ToCodepoints(text)) {
+        // A newline would run the command or send the message: keep it on one line.
+        if (cp == '\n' || cp == '\r' || cp == '\t') cp = ' ';
+        if (cp < 0x20 || cp == 0x7F) continue;
+        KeySym sym = keysymFor(cp);
+        KeyStroke key;
+        if (findKey(sym, group, key) && (key.level < 2 || altgr)) {
+            bool useShift = key.level == 1 || key.level == 3;
+            bool useAltgr = key.level >= 2;
+            if (useShift) fakeKey(shift, true);
+            if (useAltgr) fakeKey(altgr, true);
+            fakeKey(key.code, true);
+            fakeKey(key.code, false);
+            if (useAltgr) fakeKey(altgr, false);
+            if (useShift) fakeKey(shift, false);
+        } else {
+            if (!spare) spare = spareKeycode();
+            if (!spare) { ok = false; continue; }
+            if (spareSym != sym) {
+                KeySym map[2] = {sym, sym};
+                XChangeKeyboardMapping(dpy, spare, 2, map, 1);
+                XSync(dpy, False);
+                spareSym = sym;
+                usleep(5000);  // clients reload the keymap before the key arrives
+            }
+            fakeKey(spare, true);
+            fakeKey(spare, false);
+            XSync(dpy, False);
+        }
+        if (++sent % 32 == 0) XSync(dpy, False);
+    }
+    XSync(dpy, False);
+    if (spare && spareSym != NoSymbol) {
+        usleep(20000);  // let the last borrowed key be read before it disappears
+        KeySym none[2] = {NoSymbol, NoSymbol};
+        XChangeKeyboardMapping(dpy, spare, 2, none, 1);
+        XSync(dpy, False);
+    }
+    return ok;
+}
+
+static std::string paste(bool selfEditable, long ownPid, const std::string& text = "") {
     if (!dpy || !xtestReady) return "{\"ok\":false,\"reason\":\"unavailable\"}";
 
     FocusWindow focus = currentFocusWindow();
@@ -588,16 +727,25 @@ static std::string paste(bool selfEditable, long ownPid) {
     if (!v) v = 47 + 8;  // physical V key on non-Latin layouts
 
     bool terminal = isTerminal(focus);
-    fakeKey(ctrl, true);
-    if (terminal) fakeKey(shift, true);
-    fakeKey(v, true);
-    fakeKey(v, false);
-    if (terminal) fakeKey(shift, false);
-    fakeKey(ctrl, false);
+    bool typed = false;
+    if (terminal && !text.empty()) {
+        typed = typeText(text);
+        if (!typed) {
+            fprintf(stderr, "[yap-helper] some characters could not be typed\n");
+        }
+    } else {
+        fakeKey(ctrl, true);
+        if (terminal) fakeKey(shift, true);
+        fakeKey(v, true);
+        fakeKey(v, false);
+        if (terminal) fakeKey(shift, false);
+        fakeKey(ctrl, false);
+    }
     XSync(dpy, False);
     drainX();
 
     std::string out = std::string("{\"ok\":true,\"terminal\":") + (terminal ? "true" : "false");
+    out += std::string(",\"typed\":") + (terminal && !text.empty() ? "true" : "false");
     out += ",\"focus\":" + jsonString(focus.resClass);
     if (focus.pid > 0) out += ",\"pid\":" + std::to_string(focus.pid);
     return out + "}";
@@ -682,7 +830,7 @@ static void handleCommand(const std::string& line) {
     } else if (cmd == "prepareClipboard") {
         reply(id, "{}");
     } else if (cmd == "paste") {
-        reply(id, paste(boolField(line, "selfEditable", false), numberField(line, "ownPid", 0)));
+        reply(id, paste(boolField(line, "selfEditable", false), numberField(line, "ownPid", 0), stringField(line, "text")));
     } else if (cmd == "keymap") {
         reply(id, keymapJson());
     } else if (cmd == "fnUsage") {
@@ -769,7 +917,7 @@ int main(int argc, char* argv[]) {
         return 0;
     }
     if (argc >= 2 && strcmp(argv[1], "paste") == 0) {
-        sendLine(paste(true, 0));
+        sendLine(paste(true, 0, argc >= 3 ? argv[2] : ""));
         return 0;
     }
     if (argc >= 2 && strcmp(argv[1], "keymap") == 0) {
