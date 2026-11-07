@@ -30,6 +30,7 @@ export function createDefaultSettings(): AppSettings {
     autoPaste: true,
     copyToClipboard: false,
     showOverlay: true,
+    overlayPosition: 'bottom-center',
     launchAtLogin: false,
     theme: 'system',
     uiLanguage: 'system',

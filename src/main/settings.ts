@@ -8,6 +8,7 @@ import type {
   EnhancementLevel,
   HotkeyConfig,
   LocalWhisperModel,
+  OverlayPosition,
   StyleMode,
   ThemePreference,
   TranscriptionMode,
@@ -29,6 +30,7 @@ const STYLE_MODES: readonly StyleMode[] = ['conversation', 'vibe-coding', 'custo
 const VOICES: readonly CustomPlusVoice[] = ['conversation', 'developer'];
 const LEVELS: readonly EnhancementLevel[] = ['none', 'soft', 'medium', 'high'];
 const THEMES: readonly ThemePreference[] = ['system', 'light', 'dark'];
+const OVERLAY_POSITIONS: readonly OverlayPosition[] = ['bottom-center', 'top-center', 'top-right', 'bottom-right'];
 
 function getSettingsPath(): string {
   return path.join(app.getPath('userData'), SETTINGS_FILE);
@@ -142,6 +144,7 @@ export function migrateSettings(raw: unknown, defaults: AppSettings): AppSetting
     autoPaste: bool(source.autoPaste, defaults.autoPaste),
     copyToClipboard: bool(source.copyToClipboard, defaults.copyToClipboard),
     showOverlay: bool(source.showOverlay, defaults.showOverlay),
+    overlayPosition: pick(source.overlayPosition, OVERLAY_POSITIONS, defaults.overlayPosition),
     launchAtLogin: bool(source.launchAtLogin, defaults.launchAtLogin),
     theme: pick(source.theme, THEMES, defaults.theme),
     uiLanguage: pick(source.uiLanguage, UI_LANGUAGES, defaults.uiLanguage),

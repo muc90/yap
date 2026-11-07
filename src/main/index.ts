@@ -198,7 +198,7 @@ function syncOverlay(reposition = false): void {
     overlayHideTimer = null;
   }
   if (reposition || !window.isVisible()) {
-    positionOverlayWindow(window);
+    positionOverlayWindow(window, settings.overlayPosition);
   }
   if (!window.isVisible()) {
     window.showInactive();
@@ -557,7 +557,7 @@ async function updateSettings(updates: UpdateSettingsInput): Promise<AppState> {
   }
 
   engine.refreshStatus();
-  syncOverlay();
+  syncOverlay(previous.overlayPosition !== settings.overlayPosition);
   const state = await getState();
   patch({ settings: state.settings, engine: state.engine });
   return state;

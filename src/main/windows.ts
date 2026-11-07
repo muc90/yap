@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { BrowserWindow, nativeTheme, screen } from 'electron';
 
 import type { Locale } from '../shared/i18n';
-import type { ThemePreference } from '../shared/types';
+import type { OverlayPosition, ThemePreference } from '../shared/types';
 
 const isMac = process.platform === 'darwin';
 
@@ -53,11 +53,19 @@ export async function createMainWindow(theme: ThemePreference, locale: Locale): 
   return window;
 }
 
-export function positionOverlayWindow(window: BrowserWindow): void {
+export function positionOverlayWindow(window: BrowserWindow, position: OverlayPosition = 'bottom-center'): void {
   const display = screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
   const { workArea } = display;
-  const x = workArea.x + Math.round((workArea.width - OVERLAY_WIDTH) / 2);
-  const y = workArea.y + workArea.height - OVERLAY_HEIGHT - 16;
+  const right = position.endsWith('right');
+  const top = position.startsWith('top');
+  const x = right
+    ? workArea.x + workArea.width - OVERLAY_WIDTH - 16
+    : workArea.x + Math.round((workArea.width - OVERLAY_WIDTH) / 2);
+  const y = top ? workArea.y + 16 : workArea.y + workArea.height - OVERLAY_HEIGHT - 16;
+  // The pill sits inside a larger transparent window; the page aligns it to the chosen edge.
+  window.webContents
+    .executeJavaScript(`document.documentElement.dataset.overlayPosition = ${JSON.stringify(position)}`)
+    .catch(() => undefined);
   const current = window.getBounds();
   if (current.x !== x || current.y !== y || current.width !== OVERLAY_WIDTH || current.height !== OVERLAY_HEIGHT) {
     window.setBounds({ x, y, width: OVERLAY_WIDTH, height: OVERLAY_HEIGHT });

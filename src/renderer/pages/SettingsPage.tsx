@@ -1,7 +1,9 @@
 import { useState } from 'react';
 
 import { LOCALE_NAMES, LOCALES, type UiLanguage } from '../../shared/i18n';
-import type { AppState, ThemePreference, UpdateSettingsInput } from '../../shared/types';
+import type { AppState, OverlayPosition, ThemePreference, UpdateSettingsInput } from '../../shared/types';
+
+const OVERLAY_POSITION_OPTIONS: readonly OverlayPosition[] = ['bottom-center', 'top-center', 'top-right', 'bottom-right'];
 import { HotkeySettings } from '../components/HotkeyRecorder';
 import { PermissionList } from '../components/PermissionList';
 import { CopyLastShortcut } from '../components/ShortcutRecorder';
@@ -89,6 +91,19 @@ export function SettingsPage({ state, onState }: { state: AppState; onState: (ne
           checked={settings.showOverlay}
           onChange={(showOverlay) => void update({ showOverlay })}
         />
+        <div className="row">
+          <div className="row-text">
+            <strong>{t.settings.pillPosition}</strong>
+          </div>
+          <Segmented<OverlayPosition>
+            size="sm"
+            label={t.settings.pillPosition}
+            value={settings.overlayPosition}
+            disabled={!settings.showOverlay}
+            options={OVERLAY_POSITION_OPTIONS.map((value) => ({ value, label: t.settings.pillPositions[value] }))}
+            onChange={(overlayPosition) => void update({ overlayPosition })}
+          />
+        </div>
         <ToggleRow
           title={t.settings.openAtLogin}
           description={state.isPackaged || state.platform === 'linux' ? t.settings.openAtLoginHint : t.settings.installedOnly}

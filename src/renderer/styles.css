@@ -2119,6 +2119,17 @@ html.overlay-route #root {
   padding-bottom: 10px;
 }
 
+html[data-overlay-position^='top'] .overlay {
+  align-items: start;
+  padding-top: 6px;
+  padding-bottom: 0;
+}
+
+html[data-overlay-position$='right'] .overlay {
+  justify-items: end;
+  padding-right: 4px;
+}
+
 /* One element morphs between every state. It floats over any content, so it
    stays dark graphite in both themes; the recording dot is its only color. */
 .pill {

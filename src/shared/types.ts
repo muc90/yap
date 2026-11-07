@@ -7,6 +7,8 @@ export type CustomPlusVoice = 'conversation' | 'developer';
 export type TranscriptionMode = 'cloud' | 'local';
 /** System follows the macOS appearance. */
 export type ThemePreference = 'system' | 'light' | 'dark';
+/** Where the dictation pill sits on the screen. */
+export type OverlayPosition = 'bottom-center' | 'top-center' | 'top-right' | 'bottom-right';
 export type CloudTranscriptionModel = 'whisper-large-v3' | 'whisper-large-v3-turbo';
 export type LocalWhisperModel = 'onnx-community/whisper-base' | 'onnx-community/whisper-small';
 
@@ -64,6 +66,7 @@ export interface AppSettings {
   autoPaste: boolean;
   copyToClipboard: boolean;
   showOverlay: boolean;
+  overlayPosition: OverlayPosition;
   launchAtLogin: boolean;
   theme: ThemePreference;
   /** The language of Yap itself, not the one dictated in. */

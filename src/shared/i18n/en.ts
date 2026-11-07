@@ -1,5 +1,5 @@
 import type { SetupStep } from '../setup';
-import type { CustomPlusVoice, HotkeyErrorCode, RuleLevel, StyleMode } from '../types';
+import type { CustomPlusVoice, HotkeyErrorCode, OverlayPosition, RuleLevel, StyleMode } from '../types';
 
 /*
  * The English texts, and the shape every other language has to match.
@@ -293,7 +293,9 @@ export const en = {
       'Off: Yap pastes, then puts back what you had copied. Clipboard managers do not record the dictation.',
     copyOnly: 'Copies every dictation to the clipboard.',
     showPill: 'Show the dictation pill',
-    showPillHint: 'A small indicator at the bottom of the screen while you dictate.',
+    showPillHint: 'A small indicator at the edge of the screen while you dictate.',
+    pillPosition: 'Pill position',
+    pillPositions: { 'bottom-center': 'Bottom center', 'top-center': 'Top center', 'top-right': 'Top right', 'bottom-right': 'Bottom right' } as Record<OverlayPosition, string>,
     openAtLogin: 'Open at login',
     openAtLoginHint: 'Starts Yap in the background when you log in.',
     installedOnly: 'Only available in the installed app.',
