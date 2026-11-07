@@ -568,7 +568,7 @@ static std::string paste(bool selfEditable, long ownPid) {
 
     FocusWindow focus = currentFocusWindow();
     if (ownPid > 0 && focus.pid == ownPid && !selfEditable) {
-        return "{\"ok\":false,\"reason\":\"no-target\"}";
+        return "{\"ok\":false,\"reason\":\"no-target\",\"focus\":" + jsonString(focus.resClass) + "}";
     }
 
     // Like `xdotool --clearmodifiers`: a still-held Shift, Alt or Super would

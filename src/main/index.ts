@@ -275,6 +275,15 @@ async function ownTextFieldFocused(): Promise<boolean | null> {
   const window = liveWindow(mainWindow);
   // The overlay never takes focus, so a focused Yap window is the main window.
   if (!window || BrowserWindow.getFocusedWindow() !== window) return null;
+  // On Linux Electron's idea of focus can lag behind the window manager (it
+  // still says Yap after a click into a terminal). Ask X11 what is really in front.
+  if (process.platform === 'linux') {
+    const focus = await bridge.getFocus().catch(() => null);
+    if (focus?.processIdentifier && focus.processIdentifier !== process.pid) {
+      console.info('[yap] Electron reports Yap focused, but the active window is', focus.appName);
+      return null;
+    }
+  }
   try {
     return (await window.webContents.executeJavaScript(EDITABLE_PROBE)) === true;
   } catch {

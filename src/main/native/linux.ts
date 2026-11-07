@@ -77,6 +77,7 @@ export class LinuxHelperBridge extends MacHelperBridge {
         result = { ok: true };
       } else {
         const reason = raw.reason === 'no-target' || raw.reason === 'unavailable' ? raw.reason : 'failed';
+        console.info('[yap] paste not sent:', reason, raw.focus ?? '');
         result = { ok: false, reason };
       }
     } catch (error) {

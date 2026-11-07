@@ -464,6 +464,7 @@ export class DictationEngine {
       // only takes the text into a focused text field.
       const ownTextField = await this.host.ownTextFieldFocused().catch(() => null);
       if (ownTextField === false) {
+        console.info('[yap] not pasting: a Yap window is in front without a text field');
         clipboard.writeText(text);
         return 'no-target';
       }
