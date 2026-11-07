@@ -322,6 +322,15 @@ static void drainX() {
     while (XPending(dpy)) {
         XEvent ev;
         XNextEvent(dpy, &ev);
+        // While our passive grab on the dictation button is active, the X server
+        // filters our own raw events (they count as delivered through the grab),
+        // so the release only arrives as a core event. Both paths feed handleKey,
+        // which ignores the duplicate.
+        if ((ev.type == ButtonPress || ev.type == ButtonRelease) && grabbedButton &&
+            ev.xbutton.button == grabbedButton) {
+            handleKey(MOUSE_VIRTUAL + static_cast<int>(grabbedButton), ev.type == ButtonPress);
+            continue;
+        }
         if (ev.type != GenericEvent || ev.xcookie.extension != xiOpcode) continue;
         if (!XGetEventData(dpy, &ev.xcookie)) continue;
         if (ev.xcookie.evtype == XI_RawKeyPress || ev.xcookie.evtype == XI_RawKeyRelease) {
