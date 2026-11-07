@@ -597,7 +597,10 @@ static std::string paste(bool selfEditable, long ownPid) {
     XSync(dpy, False);
     drainX();
 
-    return std::string("{\"ok\":true,\"terminal\":") + (terminal ? "true" : "false") + "}";
+    std::string out = std::string("{\"ok\":true,\"terminal\":") + (terminal ? "true" : "false");
+    out += ",\"focus\":" + jsonString(focus.resClass);
+    if (focus.pid > 0) out += ",\"pid\":" + std::to_string(focus.pid);
+    return out + "}";
 }
 
 // ── Keyboard layout ─────────────────────────────────────────────────────

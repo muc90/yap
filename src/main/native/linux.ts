@@ -74,6 +74,8 @@ export class LinuxHelperBridge extends MacHelperBridge {
         PASTE_TIMEOUT_MS,
       );
       if (raw.ok === true) {
+        // Where the keystroke went, for "nothing arrived" reports.
+        console.info('[yap] paste sent to', raw.focus || '(no window)', raw.terminal ? '(terminal, Ctrl+Shift+V)' : '(Ctrl+V)', `${request.text.length} chars`);
         result = { ok: true };
       } else {
         const reason = raw.reason === 'no-target' || raw.reason === 'unavailable' ? raw.reason : 'failed';
